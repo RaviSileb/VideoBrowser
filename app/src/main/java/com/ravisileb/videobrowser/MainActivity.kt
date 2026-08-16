@@ -31,10 +31,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -170,6 +172,8 @@ fun VideoBrowserApp(
     var currentUrl by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     var currentOrientation by remember { mutableStateOf(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) }
+    var pageSafeMode by remember { mutableStateOf(false) }
+    var adCleanupDisabled by remember { mutableStateOf(false) }
 
     val normalizeUrl: (String) -> String = { raw ->
         val trimmed = raw.trim()
@@ -190,6 +194,22 @@ fun VideoBrowserApp(
     }
 
     fun openHomePage() = openUrl(DEFAULT_URL)
+
+    fun toggleSafeMode() {
+        pageSafeMode = !pageSafeMode
+        webViewRef.value?.post {
+            webViewRef.value?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+        }
+        onRequestHideSystemUi()
+    }
+
+    fun toggleAdCleanup() {
+        adCleanupDisabled = !adCleanupDisabled
+        webViewRef.value?.post {
+            webViewRef.value?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+        }
+        onRequestHideSystemUi()
+    }
 
     fun toggleRotation() {
         currentOrientation = orientationController.nextOrientation()
@@ -260,6 +280,18 @@ fun VideoBrowserApp(
                     contentDescription = "Reload",
                     containerColor = ComposeColor(0xFF2A2A2A),
                 ) { webViewRef.value?.reload() }
+
+                BrowserActionButton(
+                    icon = Icons.Default.Shield,
+                    contentDescription = if (pageSafeMode) "Exit safe mode" else "Safe mode",
+                    containerColor = if (pageSafeMode) ComposeColor(0xFF5A7D2A) else ComposeColor(0xFF2A2A2A),
+                ) { toggleSafeMode() }
+
+                BrowserActionButton(
+                    icon = Icons.Default.Block,
+                    contentDescription = if (adCleanupDisabled) "Enable ad cleanup" else "Disable ad cleanup",
+                    containerColor = if (adCleanupDisabled) ComposeColor(0xFF8A5A1D) else ComposeColor(0xFF2A2A2A),
+                ) { toggleAdCleanup() }
 
                 Spacer(modifier = Modifier.weight(1f))
 
@@ -364,9 +396,9 @@ fun VideoBrowserApp(
 
                         override fun onPageFinished(view: WebView?, url: String?) {
                             loading = false
+                            val normalizedUrl = if (!url.isNullOrEmpty()) normalizeUrl(url) else currentUrl
                             if (!url.isNullOrEmpty()) {
                                 val elapsed = System.currentTimeMillis() - pageStartedAtMs
-                                val normalized = normalizeUrl(url)
                                 val shouldRecover = guard.shouldRecoverRedirect(url, elapsed)
                                 if (shouldRecover && view != null) {
                                     if (currentUrl.isNotEmpty()) {
@@ -374,16 +406,23 @@ fun VideoBrowserApp(
                                         return
                                     }
                                 }
-                                addressText = normalized
-                                currentUrl = normalized
-                                onUrlChanged(normalized)
+                                addressText = normalizedUrl
+                                currentUrl = normalizedUrl
+                                onUrlChanged(normalizedUrl)
                             }
-                            view?.post {
-                                view.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                            val shouldCleanup = BrowserGuard.shouldRunAdCleanup(
+                                url = normalizedUrl,
+                                pageSafeMode = pageSafeMode,
+                                adCleanupDisabled = adCleanupDisabled,
+                            )
+                            if (shouldCleanup) {
+                                view?.post {
+                                    view.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                                }
+                                view?.postDelayed({
+                                    view?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                                }, 350L)
                             }
-                            view?.postDelayed({
-                                view?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
-                            }, 350L)
                             canGoBack = view?.canGoBack() == true
                             canGoForward = view?.canGoForward() == true
                         }

@@ -23,4 +23,12 @@ class BrowserGuardTest {
         assertTrue(script.contains("tagName === 'HTML'"))
         assertTrue(script.contains("tagName === 'MAIN'"))
     }
+
+    @Test
+    fun bombuj_media_pages_skip_cleanup_by_default() {
+        val url = "https://serialy.bombuj.si/serial/silo-2023-3x7"
+
+        assertTrue(!BrowserGuard.shouldRunAdCleanup(url, pageSafeMode = false, adCleanupDisabled = false))
+        assertTrue(BrowserGuard.isBombujMediaPage(url))
+    }
 }

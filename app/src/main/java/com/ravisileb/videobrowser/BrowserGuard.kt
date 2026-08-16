@@ -14,6 +14,28 @@ object BrowserGuard {
         "pagead2",
     )
 
+    fun isBombujMediaPage(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("bombuj.si") && (
+            lower.contains("serial") ||
+                lower.contains("movie") ||
+                lower.contains("film") ||
+                lower.contains("video") ||
+                lower.contains("player") ||
+                lower.contains("episode")
+            )
+    }
+
+    fun shouldRunAdCleanup(
+        url: String,
+        pageSafeMode: Boolean,
+        adCleanupDisabled: Boolean,
+    ): Boolean {
+        if (pageSafeMode || adCleanupDisabled) return false
+        if (isBombujMediaPage(url)) return false
+        return true
+    }
+
     fun shouldBlockUrl(url: String): Boolean {
         val lower = url.lowercase()
         if (blockedDomains.any { lower.contains(it) }) return true
@@ -41,6 +63,11 @@ object BrowserGuard {
 
     fun cleanupScript(): String = """
         (() => {
+          const isBombujMediaPage = () => {
+            const url = (location && location.href) || '';
+            return /bombuj\.si/i.test(url) && (/serial/i.test(url) || /movie/i.test(url) || /film/i.test(url) || /video/i.test(url) || /player/i.test(url) || /episode/i.test(url));
+          };
+
           const isPageLikelyAdOverlayPage = () => {
             const suspiciousSelectors = [
               'iframe[src*="doubleclick"]',
@@ -69,6 +96,7 @@ object BrowserGuard {
               bodyText.includes('plik ke stažení');
           };
 
+          if (isBombujMediaPage()) return;
           if (!isPageLikelyAdOverlayPage()) return;
 
           const hideNode = (node) => {
