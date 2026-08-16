@@ -31,4 +31,12 @@ class BrowserGuardTest {
         assertTrue(!BrowserGuard.shouldRunAdCleanup(url, pageSafeMode = false, adCleanupDisabled = false))
         assertTrue(BrowserGuard.isBombujMediaPage(url))
     }
+
+    @Test
+    fun prehraj_media_pages_skip_cleanup_by_default() {
+        val url = "https://prehraj.to/serial/silo"
+
+        assertTrue(!BrowserGuard.shouldRunAdCleanup(url, pageSafeMode = false, adCleanupDisabled = false))
+        assertTrue(BrowserGuard.isPrehrajMediaPage(url))
+    }
 }

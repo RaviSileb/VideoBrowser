@@ -26,13 +26,27 @@ object BrowserGuard {
             )
     }
 
+    fun isPrehrajMediaPage(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("prehraj.to") && (
+            lower.contains("serial") ||
+                lower.contains("film") ||
+                lower.contains("movie") ||
+                lower.contains("video") ||
+                lower.contains("player") ||
+                lower.contains("watch") ||
+                lower.contains("sleduj") ||
+                lower.contains("epizoda")
+            )
+    }
+
     fun shouldRunAdCleanup(
         url: String,
         pageSafeMode: Boolean,
         adCleanupDisabled: Boolean,
     ): Boolean {
         if (pageSafeMode || adCleanupDisabled) return false
-        if (isBombujMediaPage(url)) return false
+        if (isBombujMediaPage(url) || isPrehrajMediaPage(url)) return false
         return true
     }
 
@@ -68,6 +82,11 @@ object BrowserGuard {
             return /bombuj\.si/i.test(url) && (/serial/i.test(url) || /movie/i.test(url) || /film/i.test(url) || /video/i.test(url) || /player/i.test(url) || /episode/i.test(url));
           };
 
+          const isPrehrajMediaPage = () => {
+            const url = (location && location.href) || '';
+            return /prehraj\.to/i.test(url) && (/serial/i.test(url) || /film/i.test(url) || /movie/i.test(url) || /video/i.test(url) || /player/i.test(url) || /watch/i.test(url) || /sleduj/i.test(url) || /epizoda/i.test(url));
+          };
+
           const isPageLikelyAdOverlayPage = () => {
             const suspiciousSelectors = [
               'iframe[src*="doubleclick"]',
@@ -96,7 +115,7 @@ object BrowserGuard {
               bodyText.includes('plik ke stažení');
           };
 
-          if (isBombujMediaPage()) return;
+          if (isBombujMediaPage() || isPrehrajMediaPage()) return;
           if (!isPageLikelyAdOverlayPage()) return;
 
           const hideNode = (node) => {
