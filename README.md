@@ -3,7 +3,7 @@
 VideoBrowser is a lightweight Android browser focused on speed, control of tabs, and clear access to online video content.
 
 ## Project status
-- Current verified release: v1.0.3
+- Current verified release: v1.0.5
 - Target device: Samsung Galaxy S23 Ultra
 - Deployment: sideloaded private build, not Google Play
 - Status: build produced successfully, APK released, and app installed on the connected S23 device

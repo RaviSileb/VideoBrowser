@@ -31,12 +31,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -103,8 +102,36 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun VideoBrowserTheme(content: @Composable () -> Unit) {
-    Surface(color = ComposeColor(0xFF111111)) {
+    Surface(color = ComposeColor(0xFFE5E7EB)) {
         content()
+    }
+}
+
+@Composable
+private fun BrowserActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    enabled: Boolean = true,
+    containerColor: ComposeColor = ComposeColor(0xFF2A2A2A),
+    contentColor: ComposeColor = ComposeColor(0xFFFFFFFF),
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(48.dp),
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = ComposeColor(0xFF1F1F1F),
+            disabledContentColor = ComposeColor(0xFF7A7A7A),
+        ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -175,7 +202,7 @@ fun VideoBrowserApp(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ComposeColor(0xFF1C1C1C))
+                .background(ComposeColor(0xFF1A1F2A))
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -184,79 +211,58 @@ fun VideoBrowserApp(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = { webViewRef.value?.goBack() },
+                BrowserActionButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
                     enabled = canGoBack,
-                    modifier = Modifier.width(76.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = ComposeColor.White,
-                        containerColor = ComposeColor(0xFF242424),
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text("Back")
-                }
+                    containerColor = ComposeColor(0xFF2A2A2A),
+                ) { webViewRef.value?.goBack() }
 
-                OutlinedButton(
-                    onClick = { webViewRef.value?.goForward() },
+                BrowserActionButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Forward",
                     enabled = canGoForward,
-                    modifier = Modifier.width(84.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = ComposeColor.White,
-                        containerColor = ComposeColor(0xFF242424),
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text("Next")
-                }
+                    containerColor = ComposeColor(0xFF2A2A2A),
+                ) { webViewRef.value?.goForward() }
 
-                OutlinedButton(
-                    onClick = { webViewRef.value?.reload() },
-                    modifier = Modifier.width(80.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = ComposeColor.White,
-                        containerColor = ComposeColor(0xFF242424),
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text("Reload")
-                }
+                BrowserActionButton(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = "Reload",
+                    containerColor = ComposeColor(0xFF2A2A2A),
+                ) { webViewRef.value?.reload() }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                OutlinedButton(
-                    onClick = { toggleRotation() },
-                    modifier = Modifier.width(88.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = ComposeColor.White,
-                        containerColor = ComposeColor(0xFF2E5DB7),
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text("switch")
-                }
+                BrowserActionButton(
+                    icon = Icons.Default.ScreenRotation,
+                    contentDescription = "Switch orientation",
+                    containerColor = ComposeColor(0xFF2E5DB7),
+                ) { toggleRotation() }
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ComposeColor(0xFF2A2A2A), RoundedCornerShape(14.dp))
+                    .background(ComposeColor(0xFF2F3541), RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 BasicTextField(
                     value = addressText,
                     onValueChange = { addressText = it },
                     singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = ComposeColor.White,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 ) { innerTextField ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ComposeColor(0xFF2A2A2A)),
+                            .background(ComposeColor(0xFF2F3541)),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (addressText.isEmpty()) {
-                            Text("https://", color = ComposeColor(0xFFB0B0B0))
+                            Text("https://", color = ComposeColor(0xFFCED5E0))
                         }
                         innerTextField()
                     }
@@ -334,7 +340,12 @@ fun VideoBrowserApp(
                                     tabs = updatedTabs
                                 }
                             }
-                            view?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                            view?.post {
+                                view.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                            }
+                            view?.postDelayed({
+                                view?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
+                            }, 350L)
                             canGoBack = view?.canGoBack() == true
                             canGoForward = view?.canGoForward() == true
                         }
