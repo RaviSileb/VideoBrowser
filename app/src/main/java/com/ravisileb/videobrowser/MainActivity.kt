@@ -31,8 +31,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -40,9 +42,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,19 +54,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.net.URI
 
+private const val DEFAULT_URL = "https://www.bombuj.si/"
+private const val CURRENT_URL_KEY = "current_url"
+private const val CURRENT_ORIENTATION_KEY = "current_orientation"
+
 class MainActivity : ComponentActivity() {
     private lateinit var displayRotationController: DisplayRotationController
+    private var currentPageUrl: String = DEFAULT_URL
     private val uiHandler = Handler(Looper.getMainLooper())
     private val hideUiRunnable = Runnable { hideSystemUi() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        displayRotationController = DisplayRotationController(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        currentPageUrl = savedInstanceState?.getString(CURRENT_URL_KEY) ?: DEFAULT_URL
+        val restoredOrientation = savedInstanceState?.getInt(CURRENT_ORIENTATION_KEY)
+            ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        displayRotationController = DisplayRotationController(restoredOrientation)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             VideoBrowserTheme {
                 VideoBrowserApp(
                     orientationController = displayRotationController,
+                    initialUrl = currentPageUrl,
+                    onUrlChanged = { currentPageUrl = it },
                     onRequestHideSystemUi = { scheduleHideSystemUi() },
                 )
             }
@@ -81,6 +93,12 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(CURRENT_URL_KEY, currentPageUrl)
+        outState.putInt(CURRENT_ORIENTATION_KEY, displayRotationController.currentOrientation())
     }
 
     private fun scheduleHideSystemUi() {
@@ -138,26 +156,25 @@ private fun BrowserActionButton(
 @Composable
 fun VideoBrowserApp(
     orientationController: DisplayRotationController,
+    initialUrl: String = DEFAULT_URL,
+    onUrlChanged: (String) -> Unit = {},
     onRequestHideSystemUi: () -> Unit,
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
-    val defaultUrl = "https://www.google.com"
     val guard = remember { AdRedirectGuard(4000L) }
-    var tabs by remember { mutableStateOf(listOf(defaultUrl)) }
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    var addressText by remember(tabs[selectedTabIndex]) { mutableStateOf(tabs[selectedTabIndex]) }
+    var addressText by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     var loading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
-    var currentUrl by remember { mutableStateOf(defaultUrl) }
+    var currentUrl by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     var currentOrientation by remember { mutableStateOf(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) }
 
     val normalizeUrl: (String) -> String = { raw ->
         val trimmed = raw.trim()
         when {
-            trimmed.isEmpty() -> defaultUrl
+            trimmed.isEmpty() -> DEFAULT_URL
             trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
             else -> "https://$trimmed"
         }
@@ -165,16 +182,14 @@ fun VideoBrowserApp(
 
     fun openUrl(rawUrl: String) {
         val newUrl = normalizeUrl(rawUrl)
-        val updatedTabs = tabs.toMutableList()
-        if (selectedTabIndex < updatedTabs.size) {
-            updatedTabs[selectedTabIndex] = newUrl
-        }
-        tabs = updatedTabs
         addressText = newUrl
         currentUrl = newUrl
+        onUrlChanged(newUrl)
         webViewRef.value?.loadUrl(newUrl)
         onRequestHideSystemUi()
     }
+
+    fun openHomePage() = openUrl(DEFAULT_URL)
 
     fun toggleRotation() {
         currentOrientation = orientationController.nextOrientation()
@@ -183,15 +198,18 @@ fun VideoBrowserApp(
     }
 
     fun updateFromWebView(webView: WebView) {
-        val targetUrl = tabs.getOrElse(selectedTabIndex) { defaultUrl }
-        if (webView.url != targetUrl) {
-            webView.loadUrl(targetUrl)
+        if (webView.url != currentUrl) {
+            webView.loadUrl(currentUrl)
         }
         webViewRef.value = webView
         canGoBack = webView.canGoBack()
         canGoForward = webView.canGoForward()
-        currentUrl = targetUrl
-        addressText = targetUrl
+        val observedUrl = webView.url ?: currentUrl
+        if (observedUrl != currentUrl) {
+            currentUrl = observedUrl
+            addressText = observedUrl
+            onUrlChanged(observedUrl)
+        }
     }
 
     Column(
@@ -212,11 +230,23 @@ fun VideoBrowserApp(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 BrowserActionButton(
+                    icon = Icons.Default.Home,
+                    contentDescription = "Home",
+                    containerColor = ComposeColor(0xFF2A2A2A),
+                ) { openHomePage() }
+
+                BrowserActionButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     enabled = canGoBack,
                     containerColor = ComposeColor(0xFF2A2A2A),
                 ) { webViewRef.value?.goBack() }
+
+                BrowserActionButton(
+                    icon = Icons.Default.Search,
+                    contentDescription = "Open address",
+                    containerColor = ComposeColor(0xFF2A2A2A),
+                ) { openUrl(addressText) }
 
                 BrowserActionButton(
                     icon = Icons.AutoMirrored.Filled.ArrowForward,
@@ -246,26 +276,39 @@ fun VideoBrowserApp(
                     .background(ComposeColor(0xFF2F3541), RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
-                BasicTextField(
-                    value = addressText,
-                    onValueChange = { addressText = it },
-                    singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        color = ComposeColor.White,
-                    ),
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                ) { innerTextField ->
-                    Box(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BasicTextField(
+                        value = addressText,
+                        onValueChange = { addressText = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = ComposeColor.White,
+                        ),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(ComposeColor(0xFF2F3541)),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        if (addressText.isEmpty()) {
-                            Text("https://", color = ComposeColor(0xFFCED5E0))
+                            .weight(1f)
+                            .padding(end = 8.dp),
+                    ) { innerTextField ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ComposeColor(0xFF2F3541)),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            if (addressText.isEmpty()) {
+                                Text("https://", color = ComposeColor(0xFFCED5E0))
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
                     }
+
+                    BrowserActionButton(
+                        icon = Icons.Default.Search,
+                        contentDescription = "Go to URL",
+                        containerColor = ComposeColor(0xFF3B5BA9),
+                    ) { openUrl(addressText) }
                 }
             }
         }
@@ -326,19 +369,14 @@ fun VideoBrowserApp(
                                 val normalized = normalizeUrl(url)
                                 val shouldRecover = guard.shouldRecoverRedirect(url, elapsed)
                                 if (shouldRecover && view != null) {
-                                    val fallback = tabs.getOrElse(selectedTabIndex) { defaultUrl }
-                                    if (fallback.isNotEmpty()) {
-                                        view.loadUrl(fallback)
+                                    if (currentUrl.isNotEmpty()) {
+                                        view.loadUrl(currentUrl)
                                         return
                                     }
                                 }
                                 addressText = normalized
                                 currentUrl = normalized
-                                if (selectedTabIndex < tabs.size) {
-                                    val updatedTabs = tabs.toMutableList()
-                                    updatedTabs[selectedTabIndex] = normalized
-                                    tabs = updatedTabs
-                                }
+                                onUrlChanged(normalized)
                             }
                             view?.post {
                                 view.evaluateJavascript(BrowserGuard.cleanupScript(), null)
@@ -367,7 +405,7 @@ fun VideoBrowserApp(
                         }
                     }
                     webViewRef.value = this
-                    loadUrl(tabs[selectedTabIndex])
+                    loadUrl(currentUrl)
                 }
             },
             update = { webView ->

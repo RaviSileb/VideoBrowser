@@ -12,5 +12,7 @@ class DisplayRotationController(private var currentOrientation: Int) {
         return currentOrientation
     }
 
+    fun currentOrientation(): Int = currentOrientation
+
     fun isLandscape(): Boolean = currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 }
