@@ -13,4 +13,13 @@ class BrowserGuardTest {
         assertTrue(script.contains("window.innerWidth"))
         assertTrue(script.contains("aria-modal"))
     }
+
+    @Test
+    fun cleanupScript_keeps_main_content_nodes() {
+        val script = BrowserGuard.cleanupScript()
+
+        assertTrue(script.contains("tagName !== 'BODY'"))
+        assertTrue(script.contains("tagName !== 'HTML'"))
+        assertTrue(script.contains("tagName !== 'MAIN'"))
+    }
 }

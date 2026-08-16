@@ -43,6 +43,8 @@ object BrowserGuard {
         (() => {
           const hideNode = (node) => {
             if (!node || !(node instanceof Element)) return;
+            const tagName = node.tagName && node.tagName.toUpperCase();
+            if (tagName === 'BODY' || tagName === 'HTML' || tagName === 'MAIN') return;
             try {
               node.style.display = 'none';
               node.style.visibility = 'hidden';
@@ -59,6 +61,13 @@ object BrowserGuard {
 
           const shouldHideOverlay = (node) => {
             if (!node || !(node instanceof Element)) return false;
+
+            const tagName = (node.tagName || '').toUpperCase();
+            const isProtectedTag = tagName === 'BODY' || tagName === 'HTML' || tagName === 'MAIN';
+            if (isProtectedTag) return false;
+            if (tagName !== 'BODY' && tagName !== 'HTML' && tagName !== 'MAIN') {
+              // continue with overlay detection below
+            }
 
             const text = (node.textContent || '').trim().toLowerCase();
             const cls = ((node.className || '') + '').toLowerCase();
@@ -96,15 +105,15 @@ object BrowserGuard {
               text.includes('close');
             const isWhiteLayer =
               (style.backgroundColor === 'rgb(255, 255, 255)' ||
-              style.backgroundColor === 'white' ||
-              style.backgroundColor.includes('255, 255, 255')) &&
-              rect.width > window.innerWidth * 0.6 &&
-              rect.height > window.innerHeight * 0.35;
-            const hasHighZ = Number.parseInt(style.zIndex || '0', 10) > 5;
+               style.backgroundColor === 'white' ||
+               style.backgroundColor.includes('255, 255, 255')) &&
+              (isFixed || Number.parseInt(style.zIndex || '0', 10) > 5) &&
+              rect.width > window.innerWidth * 0.45 &&
+              rect.height > window.innerHeight * 0.15;
             const hasLargeFixedPanel = isFixed && rect.width > window.innerWidth * 0.55 && rect.height > window.innerHeight * 0.12;
             const isSmallCloseButton = text.includes('x') && text.trim().length <= 3;
 
-            return isModal || isAdLike || isWhiteLayer || (hasHighZ && hasLargeFixedPanel) || isSmallCloseButton;
+            return isModal || isAdLike || isWhiteLayer || hasLargeFixedPanel || isSmallCloseButton;
           };
 
           const all = Array.from(document.querySelectorAll('a,div,button,span,section,aside,header,footer,iframe'));
