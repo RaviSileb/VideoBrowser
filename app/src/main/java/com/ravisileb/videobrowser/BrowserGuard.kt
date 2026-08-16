@@ -41,6 +41,36 @@ object BrowserGuard {
 
     fun cleanupScript(): String = """
         (() => {
+          const isPageLikelyAdOverlayPage = () => {
+            const suspiciousSelectors = [
+              'iframe[src*="doubleclick"]',
+              'iframe[src*="googlesyndication"]',
+              'iframe[src*="googleadservices"]',
+              'div[id*="ad"]',
+              'div[class*="ad"]',
+              'div[id*="overlay"]',
+              'div[class*="overlay"]',
+              'div[id*="modal"]',
+              'div[class*="modal"]',
+              'a[href*="download"]',
+              'a[href*="apk"]',
+              '[aria-label*="download"]',
+              '[title*="download"]'
+            ];
+
+            const suspiciousNodeCount = document.querySelectorAll(suspiciousSelectors.join(',')).length;
+            if (suspiciousNodeCount > 0) return true;
+
+            const bodyText = (document.body && document.body.innerText || '').toLowerCase();
+            return bodyText.includes('download apk') ||
+              bodyText.includes('install app') ||
+              bodyText.includes('google tv') ||
+              bodyText.includes('stáhněte') ||
+              bodyText.includes('plik ke stažení');
+          };
+
+          if (!isPageLikelyAdOverlayPage()) return;
+
           const hideNode = (node) => {
             if (!node || !(node instanceof Element)) return;
             const tagName = node.tagName && node.tagName.toUpperCase();
@@ -63,11 +93,7 @@ object BrowserGuard {
             if (!node || !(node instanceof Element)) return false;
 
             const tagName = (node.tagName || '').toUpperCase();
-            const isProtectedTag = tagName === 'BODY' || tagName === 'HTML' || tagName === 'MAIN';
-            if (isProtectedTag) return false;
-            if (tagName !== 'BODY' && tagName !== 'HTML' && tagName !== 'MAIN') {
-              // continue with overlay detection below
-            }
+            if (tagName === 'BODY' || tagName === 'HTML' || tagName === 'MAIN') return false;
 
             const text = (node.textContent || '').trim().toLowerCase();
             const cls = ((node.className || '') + '').toLowerCase();

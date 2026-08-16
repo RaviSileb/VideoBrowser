@@ -18,8 +18,9 @@ class BrowserGuardTest {
     fun cleanupScript_keeps_main_content_nodes() {
         val script = BrowserGuard.cleanupScript()
 
-        assertTrue(script.contains("tagName !== 'BODY'"))
-        assertTrue(script.contains("tagName !== 'HTML'"))
-        assertTrue(script.contains("tagName !== 'MAIN'"))
+        assertTrue(script.contains("isPageLikelyAdOverlayPage"))
+        assertTrue(script.contains("tagName === 'BODY'"))
+        assertTrue(script.contains("tagName === 'HTML'"))
+        assertTrue(script.contains("tagName === 'MAIN'"))
     }
 }
