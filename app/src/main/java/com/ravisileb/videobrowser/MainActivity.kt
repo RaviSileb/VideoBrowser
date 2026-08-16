@@ -170,57 +170,76 @@ fun VideoBrowserApp(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ComposeColor(0xFF101010)),
+            .background(ComposeColor(0xFF151515)),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ComposeColor(0xFF1A1A1A))
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .background(ComposeColor(0xFF1C1C1C))
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
-                onClick = { webViewRef.value?.goBack() },
-                enabled = canGoBack,
-                modifier = Modifier.width(78.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ComposeColor.White,
-                    containerColor = ComposeColor(0xFF232323),
-                ),
-                shape = RoundedCornerShape(12.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Back")
-            }
+                OutlinedButton(
+                    onClick = { webViewRef.value?.goBack() },
+                    enabled = canGoBack,
+                    modifier = Modifier.width(76.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ComposeColor.White,
+                        containerColor = ComposeColor(0xFF242424),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Back")
+                }
 
-            OutlinedButton(
-                onClick = { webViewRef.value?.goForward() },
-                enabled = canGoForward,
-                modifier = Modifier.width(90.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ComposeColor.White,
-                    containerColor = ComposeColor(0xFF232323),
-                ),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("Next")
-            }
+                OutlinedButton(
+                    onClick = { webViewRef.value?.goForward() },
+                    enabled = canGoForward,
+                    modifier = Modifier.width(84.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ComposeColor.White,
+                        containerColor = ComposeColor(0xFF242424),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Next")
+                }
 
-            OutlinedButton(
-                onClick = { webViewRef.value?.reload() },
-                modifier = Modifier.width(88.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ComposeColor.White,
-                    containerColor = ComposeColor(0xFF232323),
-                ),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("Reload")
+                OutlinedButton(
+                    onClick = { webViewRef.value?.reload() },
+                    modifier = Modifier.width(80.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ComposeColor.White,
+                        containerColor = ComposeColor(0xFF242424),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Reload")
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                OutlinedButton(
+                    onClick = { toggleRotation() },
+                    modifier = Modifier.width(88.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ComposeColor.White,
+                        containerColor = ComposeColor(0xFF2E5DB7),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("switch")
+                }
             }
 
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .background(ComposeColor(0xFF2A2A2A), RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
@@ -231,7 +250,9 @@ fun VideoBrowserApp(
                     modifier = Modifier.fillMaxWidth(),
                 ) { innerTextField ->
                     Box(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ComposeColor(0xFF2A2A2A)),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (addressText.isEmpty()) {
@@ -240,38 +261,6 @@ fun VideoBrowserApp(
                         innerTextField()
                     }
                 }
-            }
-
-            OutlinedButton(
-                onClick = { toggleRotation() },
-                modifier = Modifier.width(92.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ComposeColor.White,
-                    containerColor = ComposeColor(0xFF2D4AB5),
-                ),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("switch")
-            }
-
-            OutlinedButton(
-                onClick = {
-                    val nextUrl = defaultUrl
-                    tabs = tabs + nextUrl
-                    selectedTabIndex = tabs.lastIndex
-                    addressText = nextUrl
-                    currentUrl = nextUrl
-                    webViewRef.value?.loadUrl(nextUrl)
-                    onRequestHideSystemUi()
-                },
-                modifier = Modifier.width(72.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ComposeColor.White,
-                    containerColor = ComposeColor(0xFF1F5F2F),
-                ),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("+")
             }
         }
 
@@ -310,6 +299,7 @@ fun VideoBrowserApp(
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val url = request?.url?.toString() ?: return false
+                            if (BrowserGuard.shouldBlockUrl(url)) return true
                             return url.contains("doubleclick.net") ||
                                 url.contains("googlesyndication.com") ||
                                 url.contains("googleadservices.com") ||
@@ -344,6 +334,7 @@ fun VideoBrowserApp(
                                     tabs = updatedTabs
                                 }
                             }
+                            view?.evaluateJavascript(BrowserGuard.cleanupScript(), null)
                             canGoBack = view?.canGoBack() == true
                             canGoForward = view?.canGoForward() == true
                         }
@@ -352,6 +343,11 @@ fun VideoBrowserApp(
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                             activityWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             setKeepScreenOn(true)
+                            if (view != null) {
+                                view.setOnClickListener {
+                                    callback?.onCustomViewHidden()
+                                }
+                            }
                         }
 
                         override fun onHideCustomView() {
