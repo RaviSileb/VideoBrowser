@@ -1,7 +1,10 @@
 package com.ravisileb.videobrowser
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -24,6 +27,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -50,11 +57,22 @@ import androidx.compose.ui.viewinterop.AndroidView
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             VideoBrowserTheme {
                 VideoBrowserApp()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
 
@@ -74,13 +92,23 @@ private fun VideoBrowserTheme(content: @Composable () -> Unit) {
 @Composable
 fun VideoBrowserApp() {
     val defaultUrl = "https://www.google.com"
+    val activity = LocalContext.current as? Activity
     var tabs by remember { mutableStateOf(listOf(defaultUrl)) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var addressText by remember(tabs[selectedTabIndex]) { mutableStateOf(tabs[selectedTabIndex]) }
     var loading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
+    var isLandscape by remember { mutableStateOf(false) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+
+    LaunchedEffect(isLandscape) {
+        activity?.requestedOrientation = if (isLandscape) {
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
 
     fun normalizeUrl(raw: String): String {
         val trimmed = raw.trim()
@@ -139,6 +167,23 @@ fun VideoBrowserApp() {
                                 }
                             },
                         )
+                        Button(
+                            onClick = {
+                                isLandscape = !isLandscape
+                            },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 12.dp,
+                                vertical = 8.dp,
+                            ),
+                        ) {
+                            Icon(
+                                Icons.Default.ScreenRotation,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Switch")
+                        }
                         IconButton(onClick = {
                             val nextUrl = defaultUrl
                             tabs = tabs + nextUrl
@@ -176,6 +221,7 @@ fun VideoBrowserApp() {
                     settings.cacheMode = WebSettings.LOAD_DEFAULT
                     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.allowFileAccess = false
+                    setKeepScreenOn(true)
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                             loading = true
@@ -195,7 +241,17 @@ fun VideoBrowserApp() {
                             canGoForward = view?.canGoForward() == true
                         }
                     }
-                    webChromeClient = WebChromeClient()
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
+                            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            this@apply.setKeepScreenOn(true)
+                        }
+
+                        override fun onHideCustomView() {
+                            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            this@apply.setKeepScreenOn(true)
+                        }
+                    }
                     webViewRef.value = this
                     loadUrl(tabs[selectedTabIndex])
                 }

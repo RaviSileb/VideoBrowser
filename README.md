@@ -3,10 +3,15 @@
 VideoBrowser is a lightweight Android browser focused on speed, control of tabs, and clear access to online video content.
 
 ## Project status
-- Current verified release: v1.0.0
+- Current verified release: v1.0.2
 - Target device: Samsung Galaxy S23 Ultra
 - Deployment: sideloaded private build, not Google Play
 - Status: build produced successfully, APK released, and app installed on the connected S23 device
+
+## Highlights
+- Added the rotation toggle button to switch between portrait and landscape orientation on the S23 Ultra display.
+- Kept the screen awake during fullscreen video playback and while the WebView is displaying media content.
+- Updated the browser UI and release metadata for the current build.
 
 ## Technical baseline
 - Kotlin + Jetpack Compose
